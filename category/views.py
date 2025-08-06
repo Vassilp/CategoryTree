@@ -48,7 +48,7 @@ from .serializers import CategoryListSerializer, SimilaritySerializer, \
 class CategoryViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
     # Thought about using prefetch_related('children') here, however it
-    # behaves weirdly when deleting an element from a tree.
+    # behaves weirdly when deleting an element from a tree due to caching.
     queryset = Category.objects.all()
     serializer_class = CategoryListSerializer
 
@@ -61,9 +61,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def by_depth(self, request, depth=None):
         depth = int(depth)
         categories = [cat for cat in self.queryset if cat.get_depth() == depth]
-        if not categories:
-            return Response([])
-        return Response(self.get_serializer(categories, many=True).data)
+        return self.paginated_response(categories)
 
     @extend_schema(
         summary="Get categories by parent",
@@ -73,9 +71,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     @action(detail=False, url_path='by-parent/(?P<parent_id>[0-9]+)')
     def by_parent(self, request, parent_id=None):
         categories = self.queryset.filter(parent_id=parent_id)
-        if not categories.exists():
-            return Response([])
-        return Response(self.get_serializer(categories, many=True).data)
+        return self.paginated_response(categories)
 
     @extend_schema(
         summary="Get categories as a tree",
@@ -85,10 +81,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     @action(detail=False, url_path='tree')
     def as_tree(self, request):
         self.serializer_class = CategoryTreeSerializer
-        categories = [cat for cat in self.queryset if cat.get_depth() == 0]
-        if not categories:
-            return Response([])
-        return Response(self.get_serializer(categories, many=True).data)
+        categories = Category.objects.filter(parent__isnull=True)
+        return self.paginated_response(categories)
 
     @extend_schema(
         summary="Get category tree by depth",
@@ -101,9 +95,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         self.serializer_class = CategoryTreeSerializer
         depth = int(depth) if depth is not None else 0
         categories = [cat for cat in self.queryset if cat.get_depth() == depth]
-        if not categories:
-            return Response([])
-        return Response(self.get_serializer(categories, many=True).data)
+        return self.paginated_response(categories)
 
     @extend_schema(
         summary="Get category tree by category",
@@ -136,11 +128,15 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
         similar_ids = set(similar_ids) - {category.id}
 
-        similar_categories = Category.objects.filter(id__in=similar_ids)
-        if not similar_categories.exists():
-            return Response([])
-        serializer = self.get_serializer(similar_categories, many=True,
-                                         context={"request": request})
+        categories = Category.objects.filter(id__in=similar_ids)
+        return self.paginated_response(categories)
+
+    def paginated_response(self, categories):
+        page = self.paginate_queryset(categories)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(categories, many=True)
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):

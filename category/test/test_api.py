@@ -74,13 +74,13 @@ class CategoryAPITests(TestCase):
         url = reverse('category-by-depth', args=[5])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json().get('results'), [])
 
     def test_get_by_parent_returns_200(self):
         url = reverse('category-by-parent', args=[self.b.id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json().get('results'), [])
 
     def test_as_tree_returns_root(self):
         Category.objects.create(name='Child', parent=self.a)
@@ -100,7 +100,7 @@ class CategoryAPITests(TestCase):
         url = reverse('category-tree-by-depth', args=[3])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json().get('results'), [])
 
     def test_tree_by_parent(self):
         Category.objects.create(name='Child', parent=self.a)
@@ -150,7 +150,7 @@ class CategoryAPITests(TestCase):
         url = reverse('category-similar', args=[self.a.id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json().get('results'), [])
 
     def test_create_category_without_name_returns_400(self):
         response = self.client.post(self.url, {'description': 'No name'})

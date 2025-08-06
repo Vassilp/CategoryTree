@@ -3,6 +3,10 @@ from django.db import models, transaction
 
 
 class Category(models.Model):
+    class Meta:
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
+
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='category_images/', blank=True,
@@ -53,6 +57,8 @@ class Similarity(models.Model):
                                    related_name='similar_to_b')
 
     class Meta:
+        verbose_name = "Similarity"
+        verbose_name_plural = "Similarities"
         constraints = [
             models.UniqueConstraint(
                 fields=['category_a', 'category_b'], name='unique_similarity'),
@@ -66,3 +72,6 @@ class Similarity(models.Model):
         if self.category_a.id > self.category_b.id:
             self.category_a, self.category_b = self.category_b, self.category_a
         super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.category_a.name} <-> {self.category_b.name}'
