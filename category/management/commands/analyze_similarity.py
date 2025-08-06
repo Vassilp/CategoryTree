@@ -7,8 +7,19 @@ class Command(BaseCommand):
     help = ("Analyze similarity graph: show longest rabbit "
             "hole and rabbit islands")
     adjacency_dict = {}
+    mode = None
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '-m', '--mode',
+            choices=['fast', 'full'],
+            default='full',
+            help="Choose 'fast' for a fast but not proven analysis or "
+                 "'full' for exhaustive (default: full)"
+        )
 
     def handle(self, *args, **options):
+        self.mode = options['mode']
         for s in Similarity.objects.all():
             self.adjacency_dict.setdefault(s.category_a_id, set()).add(
                 s.category_b_id)
@@ -17,7 +28,7 @@ class Command(BaseCommand):
 
         categories_by_id = {c.id: c for c in Category.objects.all()}
         islands = self.collect_islands(categories_by_id)
-        longest_path = []
+        longest_path = self.get_longest_path(islands)
 
         for island in islands:
             path = self.double_bfs_diameter(island)
@@ -46,21 +57,69 @@ class Command(BaseCommand):
                 queue.extend(self.adjacency_dict.get(node, []))
         return island
 
-    def bfs_all_paths(self, start):
+    def collect_islands(self, categories_by_id):
+        visited = set()
+        islands = []
+
+        for cat_id in categories_by_id:
+            if cat_id not in visited:
+                island = self.collect_island(cat_id)
+                visited.update(island)
+                islands.append(island)
+
+        return islands
+
+    # Decided I'm going to have some "fun" with this so added a toggle.
+    # Omitting it, or using full will calculate full bsf paths. If fast is
+    # used though we get into the fun stuff. Did some digging and wanted to
+    # find a way to calculate the longest rabit hole faster. I find the
+    # solution a bit iffy, because I can't prove that it works up to a graph
+    # with X edges, however I have not found a data set which yields different
+    # results(disproving it) than the slow approach(in length at least,
+    # because they may and do find different maximum rabbit holes if
+    # there are multiple). The magic number 10(in double_bfs_diameter) is bad,
+    # in theory it should be possible to calculate based on the amount
+    # of edges and vertices what the actual number should be, but that
+    # complexity is not for here.
+    def get_longest_path(self, islands):
+        assert self.mode in ['full', 'fast'], 'invalid mode'
+        longest_path = []
+        for island in islands:
+            path = []
+            if self.mode == 'full':
+                path = self.find_longest_shortest_path(island)
+            if self.mode == 'fast':
+                path = self.double_bfs_diameter(island)
+            if len(path) > len(longest_path):
+                longest_path = path
+        return longest_path
+
+    # Simple full bfs solution
+    def find_longest_shortest_path(self, island):
+        max_path = []
+        for node in island:
+            path = self.bfs_longest_path_from(node)
+            if len(path) > len(max_path):
+                max_path = path
+        return max_path
+
+    def bfs_longest_path_from(self, start):
         seen = {start}
         queue = [(start, [start])]
-        distances = {start: 0}
-        paths = {start: [start]}
+        longest_path = []
+
         while queue:
             node, path = queue.pop(0)
+            if len(path) > len(longest_path):
+                longest_path = path
+
             for neighbor in self.adjacency_dict.get(node, []):
                 if neighbor not in seen:
                     seen.add(neighbor)
-                    distances[neighbor] = distances[node] + 1
-                    paths[neighbor] = path + [neighbor]
                     queue.append((neighbor, path + [neighbor]))
-        return distances, paths
+        return longest_path
 
+    # Fast modified bfs solution
     # This one is evil...
     # A standard BFS from every edge is too slow.
     # A normal double BFS, although half the internet says works for an
@@ -81,10 +140,6 @@ class Command(BaseCommand):
     # So what I decided to do is a bit iffy, as in theory I should be able
     # to break it, but it seems to be working and I do not seem to find
     # an edge case for it not working.
-    # For a real life implementation I would suggest storing the diameter in
-    # the database and running a dfs on save and delete of an edge from
-    # all affected edges, however this solution is way too overkill and will
-    # be very time complex for loading edges(similarities) in bulk.
     def double_bfs_diameter(self, island):
         start = next(iter(island))
         distances, _ = self.bfs_all_paths(start)
@@ -102,14 +157,19 @@ class Command(BaseCommand):
                     longest_path = path
         return longest_path
 
-    def collect_islands(self, categories_by_id):
-        visited = set()
-        islands = []
+    def bfs_all_paths(self, start):
+        seen = {start}
+        queue = [(start, [start])]
+        distances = {start: 0}
+        paths = {start: [start]}
 
-        for cat_id in categories_by_id:
-            if cat_id not in visited:
-                island = self.collect_island(cat_id)
-                visited.update(island)
-                islands.append(island)
+        while queue:
+            node, path = queue.pop(0)
 
-        return islands
+            for neighbor in self.adjacency_dict.get(node, []):
+                if neighbor not in seen:
+                    seen.add(neighbor)
+                    distances[neighbor] = distances[node] + 1
+                    paths[neighbor] = path + [neighbor]
+                    queue.append((neighbor, path + [neighbor]))
+        return distances, paths

@@ -12,11 +12,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--categories', type=int, default=0,
+            '-c', '--categories', type=int, default=0,
             help='If set, generate this many categories after resetting'
         )
         parser.add_argument(
-            '--similarities', type=int, default=0,
+            '-s', '--similarities', type=int, default=0,
             help='If set, generate this many similarities after resetting'
         )
 
