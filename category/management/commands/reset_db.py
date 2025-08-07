@@ -6,6 +6,8 @@ from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.contrib.auth import get_user_model
 
+from category.models import Similarity
+
 
 class Command(BaseCommand):
     help = 'Flush the database and create a superuser with preset credentials'
@@ -23,7 +25,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         categories = options['categories']
         similarities = options['similarities']
-        max_similarities = int((categories * (categories - 1)) / 2)
+        max_similarities = int(
+            (categories * (categories - 1)) / 2) - Similarity.objects.count()
         if similarities > max_similarities:
             self.stdout.write(self.style.WARNING(
                 f'More than the maximum amount of similarities. '
