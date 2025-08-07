@@ -67,7 +67,6 @@ This will:
 ./manage.py runserver
 ```
 
-- API documentation: [http://localhost:8000/api/docs/](http://localhost:8000/api/docs/)
 - Admin panel: [http://localhost:8000/admin/](http://localhost:8000/admin/)
 
 ---
