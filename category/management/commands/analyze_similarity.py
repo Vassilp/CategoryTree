@@ -126,13 +126,13 @@ class Command(BaseCommand):
     # unweighted, simple, connected graph, which this is, I have an example
     # of it not working: we have the edges [A, B, C, D, E, F, G],
     # we define our vertices as [(A, E), (B, F), (C, G), (E, F), (F, G),
-    # (D, E), (D, G)], then if we pick B or D for our first vertex, we will
-    # get A, D, C, or respectfully A, B, C as our furthest vertices.
+    # (D, E), (D, G)], then if we pick B or F for our first vertex, we will
+    # get A, D, C, or if we pick D - B as our furthest vertices.
     # Because in a standard double BFS we pick one of them and do a second
-    # BFS with it and say that we are done we have a 1/3 in each of those
-    # situations to get a smaller than the largest shortest path(diameter),
-    # which because those first nodes are two of seven is 2/21, or an
-    # almost 10% chance of a wrong result.
+    # BFS with it and say that we are done we have a 1/3(respectfully 1/1) in
+    # each of those situations to get a smaller than the largest shortest
+    # path(diameter), which because those first nodes are seven is 5/21, or an
+    # almost 25% chance of a wrong result.
     # Started thinking about dijkstra, however it's complexity grows a lot:
     # Dijkstra's algorithm has a time complexity of O(|V| log |V| + |E|)
     # if implemented using Fibonacci-heaps, while BFS has a time complexity
